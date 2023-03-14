@@ -22,7 +22,7 @@ extension Array : AGValue { }
 public protocol AGObj { }
 
 public struct Path : AGValue, AGObj {
-    var entities: [AGValue] = [AGValue]()
+    public var entities: [AGValue] = [AGValue]()
     
     init(entities: [AGValue]) {
         self.entities = entities
@@ -30,9 +30,9 @@ public struct Path : AGValue, AGObj {
 }
 
 public struct Vertex : AGValue, AGObj {
-    var id : Int64
-    var label : String
-    var properties : AGValue
+    public var id : Int64
+    public var label : String
+    public var properties : AGValue
     
     init(id: Int64, label: String, properties: AGValue) {
         self.id = id
@@ -42,11 +42,11 @@ public struct Vertex : AGValue, AGObj {
 }
 
 public struct Edge : AGValue, AGObj {
-    var id : Int64
-    var label : String
-    var startId : Int64? = nil
-    var endId : Int64? = nil
-    var properties : AGValue
+    public var id : Int64
+    public var label : String
+    public var startId : Int64? = nil
+    public var endId : Int64? = nil
+    public var properties : AGValue
     
     init(id: Int64, label: String, properties: AGValue) {
         self.id = id
