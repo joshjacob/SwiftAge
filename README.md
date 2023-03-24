@@ -23,7 +23,8 @@ For Vapor of other projects using a `Package.swift` file, SwiftAge can be added 
 
 For those developing in Xcode, the dependency can be added in the "Frameworks and Libraries" section of the "General" tab for your target.
 
-#### Connection and Querying
+
+#### Connection
 
 SwiftAge adds querying extensions on top of the PostgresNIO `PostgresConnection` so creation of that connection happens according to PostgresNIO documentation:
 
@@ -36,24 +37,75 @@ SwiftAge adds querying extensions on top of the PostgresNIO `PostgresConnection`
    ).get()
 ````
 
-A convenience method is provided to set up ApacheAGE:
+
+#### Set up AGE
+
+Each connection needs commands run to set up AGE. A convenience method is provided for this:
 
 ```swift
-   try await connection.setUpAge(logger: logger)
-   // runs:
-   //    LOAD 'age';
-   //    SET search_path = ag_catalog, "$user", public;
+try await connection.setUpAge(logger: logger)
+// will run:
+//	LOAD 'age';
+//	SET search_path = ag_catalog, "$user", public;
+//	"SELECT cast(typelem as INTEGER) FROM pg_type WHERE typname='_agtype'"
 ```
+
+The last call fetches the Postgres OID for `_agtype` and configures PostgresNIO decoding.
+
+
+#### Querying with SwiftAge Extensions
 
 After that, graph querying can happen:
 
 ```swift
-   let agRows = try connection.execCypher(
-      "SELECT * FROM cypher('test_graph_1', $$ MATCH (v:Person) RETURN v $$) as (v agtype);", 
-      logger: logger).wait()
+// with EventLoop...
+let agRows = try connection.execCypher(
+	"SELECT * FROM cypher('test_graph_1', $$ MATCH (v:Person) RETURN v $$) as (v agtype);", 
+	logger: logger).wait()
+
+// ...or Async/Await
+let agRows = try await connection.execCypher(
+	"SELECT * FROM cypher('test_graph_1', $$ MATCH (v:Person) RETURN v $$) as (v agtype);", 
+	logger: logger)
 ```
 
-The returned `CypherQueryResult` struct contains the `PostgresQueryMetadata` data similar to `PostgresQueryResult` but the `rows` field is an array `AGValue`. The `AGValue` type can be one of the scalar types defined by [Apache AGE](https://age.apache.org/age-manual/master/intro/types.html) as well as a struct to represent a Vertex or an Edge.
+The returned `CypherQueryResult` struct contains the `PostgresQueryMetadata` data similar to `PostgresQueryResult` but the `rows` field is an `AGValue` array. The `AGValue` type can be one of the scalar types defined by [Apache AGE](https://age.apache.org/age-manual/master/intro/types.html) as well as a struct to represent a Vertex, Edge or Path.
+
+
+#### Querying with PostgresNIO Decoding
+
+Instead of using the `execCypher()` calls, you can use the normal PostgresNIO methods for querying and fetching results. SwiftAge will return `agtype` data in a `AGValueWrapper` whose value can be cast to appropriate types:
+
+```swift
+let rows = try await connection.query(
+	"SELECT * FROM cypher('test_graph_1', $$ MATCH (v:Person) RETURN v $$) as (v agtype);", 
+	logger: logger)
+for try await (agValue) in rows.decode((AGValueWrapper).self, context: .default) {
+	if let vertex = agValue.value as? Vertex {
+		print(vertex.label)
+	}
+}
+```
+
+#### Parameters
+
+The `AGValueWrapper` struct can also be used to properly encode Postgres binding parameters:
+
+```swift
+let params: Dictionary<String,AGValue> = ["newName": "Little'Bobby'Tables"]
+let paramsWrapper: AGValueWrapper = AGValueWrapper.init(value: params)
+let agRows = try await connection.execCypher(
+	"SELECT * FROM cypher('test_graph_1', $$ CREATE (v:Person {name: $newName}) RETURN v $$, \( paramsWrapper )) as (v agtype);",
+	logger: logger)
+```
+
+Between PostgresNIO and SwiftAge, this will result in the query being converted to:
+
+```sql
+SELECT * FROM cypher('test_graph_1', $$ CREATE (v:Person {name: $newName}) RETURN v $$, $1) as (v agtype);
+```
+
+And the `$1` parameter being a jsonb encoding of the Dictionary.
 
 ## Getting started
 

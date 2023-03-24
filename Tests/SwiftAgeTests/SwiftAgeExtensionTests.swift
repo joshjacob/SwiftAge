@@ -19,6 +19,8 @@ final class SwiftAgeExtensionTests: XCTestCase {
     var logger: Logger?
     var connection: PostgresConnection?
     
+    // MARK: - Debug Printing
+    
     let debugPrint = true
     
     func debugPrintArray(_ array: [AGValue], indent: String = "") {
@@ -50,6 +52,8 @@ final class SwiftAgeExtensionTests: XCTestCase {
             print(indent + "\(element): \(String(describing: dict[element]))")
         }
     }
+    
+    // MARK: - Setup and Tear Down
     
     override func setUp() async throws {
         // Put setup code here. This method is called before the invocation of each test method in the class.
@@ -95,6 +99,8 @@ final class SwiftAgeExtensionTests: XCTestCase {
         try eventLoopGroup.syncShutdownGracefully()
     }
     
+    // MARK: - Async
+    
     func testQueryVertexAsync() async throws {
         guard let connection = self.connection, let logger = self.logger else { return }
         
@@ -107,10 +113,12 @@ final class SwiftAgeExtensionTests: XCTestCase {
         XCTAssert(agRows.first is Vertex)
     }
     
+    // MARK: - EventLoop
+    
     func testQueryVertexEventLoop() throws {
         guard let connection = self.connection, let logger = self.logger else { return }
         
-        let _ = try connection.setUpAge(logger: logger).wait()
+        try connection.setUpAge(logger: logger).wait()
         let agRows = try connection.execCypher("SELECT * FROM cypher('test_graph_1', $$ MATCH (v:Person) RETURN v $$) as (v agtype);", logger: logger).wait()
         if debugPrint {
             debugPrintArray(agRows.rows)
@@ -156,6 +164,42 @@ final class SwiftAgeExtensionTests: XCTestCase {
         XCTAssert((agRows.first as! [AGValue])[0] is Vertex)
         XCTAssert((agRows.first as! [AGValue])[1] is Edge)
         XCTAssert((agRows.first as! [AGValue])[2] is Vertex)
+    }
+    
+    func testParamsAsync() async throws {
+        guard let connection = self.connection, let logger = self.logger else { return }
+        try await connection.setUpAge(logger: logger)
+        
+        let params: Dictionary<String,AGValue> = ["newName": "Jos'h4"]
+        let paramsWrapper: AGValueWrapper = AGValueWrapper.init(value: params)
+        let agRows = try await connection.execCypher(
+                "SELECT * FROM cypher('test_graph_1', $$ CREATE (v:Person {name: $newName}) RETURN v $$, \( paramsWrapper )) as (v agtype);",
+                logger: logger)
+        if let row = agRows.first, let vertex = row as? Vertex {
+            print(vertex.properties)
+        }
+        
+//        print(agRows)
+//        if debugPrint {
+//            debugPrintArray(agRows.rows)
+//        }
+    }
+    
+    // MARK: - PostgresNIO Decoding
+    
+    func testQueryDecodeRowAsync() async throws {
+        guard let connection = self.connection, let logger = self.logger else { return }
+        
+        try await connection.setUpAge(logger: logger)
+        
+        let rows = try await connection.query(
+            "SELECT * FROM cypher('test_graph_1', $$ MATCH (v:Person) RETURN v $$) as (v agtype);",
+            logger: logger)
+        for try await (agValue) in rows.decode((AGValueWrapper).self, context: .default) {
+            if let vertex = agValue.value as? Vertex {
+                print(vertex.label)
+            }
+        }
     }
     
     func testQuery3() async throws {

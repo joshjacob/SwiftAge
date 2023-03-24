@@ -2,6 +2,36 @@ import Foundation
 import PostgresNIO
 import NIO
 
+// TODO: Use AGValue directly
+struct AGValueWrapper: AGValue {
+    var value: AGValue?
+}
+
+extension AGValueWrapper: PostgresEncodable {
+    static var psqlFormat: PostgresFormat {
+        .binary
+    }
+    
+    static var psqlType: PostgresDataType = PostgresDataType(16448)
+    
+    func encode<JSONEncoder>(into byteBuffer: inout ByteBuffer, context: PostgresEncodingContext<JSONEncoder>) throws where JSONEncoder : PostgresJSONEncoder {
+        byteBuffer.writeBytes(SwiftAgeParser.jsonBVersionBytes)
+        let jsonData = try JSONSerialization.data(withJSONObject: self.value as Any, options: [])
+        let jsonString = String(data: jsonData, encoding: String.Encoding.utf8)!
+        byteBuffer.writeString(jsonString)
+        
+        // TODO: Get AGValue types to conform to Encodable
+        // byteBuffer.writeData(try context.jsonEncoder.encode(self.value))
+    }
+}
+
+extension AGValueWrapper: PostgresDecodable {
+    init<JSONDecoder>(from byteBuffer: inout ByteBuffer, type: PostgresDataType, format: PostgresFormat, context: PostgresDecodingContext<JSONDecoder>) throws where JSONDecoder : PostgresJSONDecoder {
+        guard type == AGValueWrapper.psqlType else { return }
+        self.value = try SwiftAgeParser.parseByteBuffer(&byteBuffer) //' SwiftAgeParser.parse(input: string)
+    }
+}
+
 public struct CypherQueryResult {
     public let metadata: PostgresQueryMetadata
     public let rows: [AGValue]
@@ -30,15 +60,34 @@ extension CypherQueryResult: Collection {
 
 extension PostgresConnection {
     
-    public func setUpAge(logger: Logger) throws -> EventLoopFuture<PostgresQueryResult> {
+    public func setUpAge(logger: Logger) -> EventLoopFuture<Void> {
         return self.query("LOAD 'age';", logger: logger).flatMap { _ in
-            return self.query("SET search_path = ag_catalog, \"$user\", public;", logger: logger)
+            return self.query("SET search_path = ag_catalog, \"$user\", public;", logger: logger).flatMap { _ in
+                return self.query("SELECT cast(typelem as INTEGER) FROM pg_type WHERE typname='_agtype'", logger: logger).flatMapResult { body in
+                    return Result {
+                        if let row = body.rows.first,
+                           let ageId = try row.first?.decode(Int32.self) {
+                            print("Apache AGE installed with _agtype oid = \(ageId)")
+                            AGValueWrapper.psqlType = PostgresDataType(UInt32(ageId))
+                        }
+                        // TODO: exception where AGE isn't installed
+                        return Void()
+                    }
+                }
+            }
         }
     }
     
     public func setUpAge(logger: Logger) async throws {
         let _ = try await self.query("LOAD 'age';", logger: logger).get()
         let _ = try await self.query("SET search_path = ag_catalog, \"$user\", public;", logger: logger).get()
+        let result = try await self.query("SELECT cast(typelem as INTEGER) FROM pg_type WHERE typname='_agtype'", logger: logger).get()
+        if let row = result.rows.first,
+            let ageId = try row.first?.decode(Int32.self) {
+            print("Apache AGE installed with _agtype oid = \(ageId)")
+            AGValueWrapper.psqlType = PostgresDataType(UInt32(ageId))
+        }
+        // TODO: exception where AGE isn't installed
     }
     
     public func execCypher(
@@ -100,14 +149,11 @@ extension PostgresConnection {
     }
     
     private func parseCell(_ cell: PostgresCell) throws -> AGValue? {
-        var byteBuffer = cell.bytes
-        // skip jsonb version, get json as string
-        let jsonBVersionBytes: [UInt8] = [0x01]
-        let _ = byteBuffer?.readBytes(length: jsonBVersionBytes.count)
-        let readableBytes = byteBuffer?.readableBytes ?? 0
-        let data = Data((byteBuffer?.readBytes(length: readableBytes)) ?? [UInt8]())
-        let string = String.init(data: data, encoding: .utf8) ?? ""
-        // parse string
-        return try SwiftAgeParser.parse(input: string)
+        let byteBuffer = cell.bytes
+        if var byteBuffer = byteBuffer {
+            return try SwiftAgeParser.parseByteBuffer(&byteBuffer)
+        } else {
+            return nil
+        }
     }
 }
