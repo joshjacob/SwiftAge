@@ -3,18 +3,18 @@ import PostgresNIO
 import NIO
 
 // TODO: Use AGValue directly
-struct AGValueWrapper: AGValue {
+public struct AGValueWrapper: AGValue {
     var value: AGValue?
 }
 
 extension AGValueWrapper: PostgresEncodable {
-    static var psqlFormat: PostgresFormat {
+    public static var psqlFormat: PostgresFormat {
         .binary
     }
     
-    static var psqlType: PostgresDataType = PostgresDataType(16448)
+    public static var psqlType: PostgresDataType = PostgresDataType(16448)
     
-    func encode<JSONEncoder>(into byteBuffer: inout ByteBuffer, context: PostgresEncodingContext<JSONEncoder>) throws where JSONEncoder : PostgresJSONEncoder {
+    public func encode<JSONEncoder>(into byteBuffer: inout ByteBuffer, context: PostgresEncodingContext<JSONEncoder>) throws where JSONEncoder : PostgresJSONEncoder {
         byteBuffer.writeBytes(SwiftAgeParser.jsonBVersionBytes)
         let jsonData = try JSONSerialization.data(withJSONObject: self.value as Any, options: [])
         let jsonString = String(data: jsonData, encoding: String.Encoding.utf8)!
@@ -26,7 +26,7 @@ extension AGValueWrapper: PostgresEncodable {
 }
 
 extension AGValueWrapper: PostgresDecodable {
-    init<JSONDecoder>(from byteBuffer: inout ByteBuffer, type: PostgresDataType, format: PostgresFormat, context: PostgresDecodingContext<JSONDecoder>) throws where JSONDecoder : PostgresJSONDecoder {
+    public init<JSONDecoder>(from byteBuffer: inout ByteBuffer, type: PostgresDataType, format: PostgresFormat, context: PostgresDecodingContext<JSONDecoder>) throws where JSONDecoder : PostgresJSONDecoder {
         guard type == AGValueWrapper.psqlType else { return }
         self.value = try SwiftAgeParser.parseByteBuffer(&byteBuffer) //' SwiftAgeParser.parse(input: string)
     }
