@@ -5,6 +5,10 @@ import NIO
 // TODO: Use AGValue directly
 public struct AGValueWrapper: AGValue {
     var value: AGValue?
+    
+    public init(value: AGValue? = nil) {
+        self.value = value
+    }
 }
 
 extension AGValueWrapper: PostgresEncodable {
