@@ -1,10 +1,3 @@
-//
-//  SwiftAgeVisitor.swift
-//  
-//
-//  Created by Joshua Jacob on 3/7/23.
-//
-
 import Foundation
 import Antlr4
 

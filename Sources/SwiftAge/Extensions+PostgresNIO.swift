@@ -105,17 +105,26 @@ extension PostgresConnection {
             return CypherQueryResult(metadata: result.metadata, rows: agRows)
         }
     }
-     
-//     func execCypher(
-//         _ query: PostgresQuery,
-//         logger: Logger,
-//         file: String = #file,
-//         line: Int = #line,
-//         _ onRow: @escaping (PostgresRow) throws -> ()
-//     ) -> EventLoopFuture<PostgresQueryMetadata> {
-//
-//     }
-     
+    
+    /*
+     public func execCypher(
+         _ query: PostgresQuery,
+         logger: Logger,
+         file: String = #file,
+         line: Int = #line,
+         _ onRow: @escaping (PostgresRow) throws -> ()
+     ) -> EventLoopFuture<PostgresQueryMetadata> {
+         self.queryStream(query, logger: logger).flatMap { rowStream in
+             rowStream.onRow(onRow).flatMapThrowing { () -> PostgresQueryMetadata in
+                 guard let metadata = PostgresQueryMetadata(string: rowStream.commandTag) else {
+                     throw PSQLError.invalidCommandTag(rowStream.commandTag)
+                 }
+                 return metadata
+             }
+         }
+     }
+     */
+    
      public func execCypher(
          _ query: PostgresQuery,
          logger: Logger,

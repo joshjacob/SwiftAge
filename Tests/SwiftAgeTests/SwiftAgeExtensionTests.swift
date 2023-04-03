@@ -30,14 +30,13 @@ final class SwiftAgeExtensionTests: XCTestCase {
                 print(indent + "Vertex id \(vertex.id)")
                 print(indent + indentSpace + "label: \(vertex.label)")
                 print(indent + indentSpace + "properties:")
-                if let dict = vertex.properties as? Dictionary<String,AGValue> {
-                    debugPrintDictionary(dict, indent: indent + indentSpace + indentSpace)
-                }
+                debugPrintDictionary(vertex.properties, indent: indent + indentSpace + indentSpace)
             } else if let edge = element as? Edge {
                 print(indent + "Edge connection \(String(describing: edge.startId)) to \(String(describing: edge.endId))")
                 print(indent + indentSpace + "label: \(edge.label)")
             } else if let path = element as? Path {
                 print(indent + "Path with \(path.entities.count) values")
+                debugPrintArray(path.entities, indent: indent + indentSpace)
             } else if let subArray = element as? [AGValue] {
                 print(indent + "Array of:")
                 debugPrintArray(subArray, indent: indent + indentSpace)
@@ -151,8 +150,8 @@ final class SwiftAgeExtensionTests: XCTestCase {
         let query = """
             SELECT * from cypher('test_graph_1', $$
                     MATCH (V)-[R:RELTYPE]-(V2)
-                    RETURN V,R,V2
-            $$) as (V agtype, R agtype, V2 agtype);
+                    RETURN [V,R,V2]::path as p
+            $$) as (p agtype);
         """
         
         try await connection.setUpAge(logger: logger)
@@ -161,52 +160,177 @@ final class SwiftAgeExtensionTests: XCTestCase {
             debugPrintArray(agRows.rows)
         }
         XCTAssert(agRows.count > 0)
-        XCTAssert((agRows.first as! [AGValue])[0] is Vertex)
-        XCTAssert((agRows.first as! [AGValue])[1] is Edge)
-        XCTAssert((agRows.first as! [AGValue])[2] is Vertex)
-    }
-    
-    func testParamsAsync() async throws {
-        guard let connection = self.connection, let logger = self.logger else { return }
-        try await connection.setUpAge(logger: logger)
-        
-        let params: Dictionary<String,AGValue> = ["newName": "Jos'h4"]
-        let paramsWrapper: AGValueWrapper = AGValueWrapper.init(value: params)
-        let agRows = try await connection.execCypher(
-                "SELECT * FROM cypher('test_graph_1', $$ CREATE (v:Person {name: $newName}) RETURN v $$, \( paramsWrapper )) as (v agtype);",
-                logger: logger)
-        if let row = agRows.first, let vertex = row as? Vertex {
-            print(vertex.properties)
+        if let row = agRows.first,
+           let path = row as? Path{
+            XCTAssert(path.entities[0] is Vertex)
+            XCTAssert(path.entities[1] is Edge)
+            XCTAssert(path.entities[2] is Vertex)
+        } else {
+            XCTFail()
         }
-        
-//        print(agRows)
-//        if debugPrint {
-//            debugPrintArray(agRows.rows)
-//        }
+//        XCTAssert((agRows.first as! [AGValue])[0] is Vertex)
+//        XCTAssert((agRows.first as! [AGValue])[1] is Edge)
+//        XCTAssert((agRows.first as! [AGValue])[2] is Vertex)
     }
     
-    // MARK: - PostgresNIO Decoding
+    // MARK: - PostgresNIO Row Decoding
     
     func testQueryDecodeRowAsync() async throws {
         guard let connection = self.connection, let logger = self.logger else { return }
-        
         try await connection.setUpAge(logger: logger)
         
         let rows = try await connection.query(
             "SELECT * FROM cypher('test_graph_1', $$ MATCH (v:Person) RETURN v $$) as (v agtype);",
             logger: logger)
         for try await (agValue) in rows.decode((AGValueWrapper).self, context: .default) {
-            if let vertex = agValue.value as? Vertex {
-                print(vertex.label)
+            if debugPrint {
+                print(agValue.value as Any)
             }
         }
     }
     
-    func testQuery3() async throws {
+    func testQueryDecodeRowEventLoop() throws {
         guard let connection = self.connection, let logger = self.logger else { return }
+        try connection.setUpAge(logger: logger).wait()
         
+        let result = try connection.query(
+            "SELECT * FROM cypher('test_graph_1', $$ MATCH (v:Person) RETURN v $$) as (v agtype);",
+            logger: logger).wait()
+        for row in result.rows {
+            let (agValue) = try row.decode((AGValueWrapper).self)
+            if debugPrint {
+                print(agValue.value as Any)
+            }
+        }
+    }
+    
+    // MARK: - Parameters
+    
+    func testParamsAsync() async throws {
+        guard let connection = self.connection, let logger = self.logger else { return }
         try await connection.setUpAge(logger: logger)
-        let agRows = try await connection.query("SELECT count(*) FROM ag_graph WHERE name='test_graph_1';", logger: logger).collect()
-        print(agRows.first as Any)
+        
+        // set params
+        let dateFormatter = DateFormatter()
+        dateFormatter.dateFormat = "yyyy-MM-dd'T'HH:mm:ss"
+        let testName = dateFormatter.string(from: Date())
+        var params: Dictionary<String,AGValue> = ["name": testName]
+        var paramsWrapper: AGValueWrapper = AGValueWrapper.init(value: params)
+        
+        // create
+        var agRows = try await connection.execCypher(
+                "SELECT * FROM cypher('test_graph_1', $$ CREATE (v:Person {name: $name}) RETURN v $$, \( paramsWrapper )) as (v agtype);",
+                logger: logger)
+        if debugPrint { debugPrintArray(agRows.rows) }
+        if let row = agRows.first,
+            let vertex = row as? Vertex,
+            let name = vertex.properties["name"] as? String {
+            XCTAssert(name == testName)
+        } else {
+            XCTFail()
+        }
+        
+        // read
+        agRows = try await connection.execCypher(
+                "SELECT * FROM cypher('test_graph_1', $$ MATCH (v:Person {name: $name}) RETURN v $$, \( paramsWrapper )) as (v agtype);",
+                logger: logger)
+        if debugPrint { debugPrintArray(agRows.rows) }
+        if let row = agRows.first,
+            let vertex = row as? Vertex,
+            let name = vertex.properties["name"] as? String {
+            XCTAssert(name == testName)
+        } else {
+            XCTFail()
+        }
+        
+        // update
+        let testNewName = "\(testName)-updated"
+        params["newName"] = testNewName
+        paramsWrapper = AGValueWrapper.init(value: params)
+        agRows = try await connection.execCypher(
+                "SELECT * FROM cypher('test_graph_1', $$ MATCH (v:Person {name: $name}) SET v.name = $newName RETURN v $$, \( paramsWrapper )) as (v agtype);",
+                logger: logger)
+        if debugPrint { debugPrintArray(agRows.rows) }
+        if let row = agRows.first,
+            let vertex = row as? Vertex,
+            let name = vertex.properties["name"] as? String {
+            XCTAssert(name == testNewName)
+        } else {
+            XCTFail()
+        }
+        
+        // delete
+        agRows = try await connection.execCypher(
+                "SELECT * FROM cypher('test_graph_1', $$ MATCH (v:Person {name: $newName}) DELETE v $$, \( paramsWrapper )) as (v agtype);",
+                logger: logger)
+        agRows = try await connection.execCypher(
+                "SELECT * FROM cypher('test_graph_1', $$ MATCH (v:Person {name: $newName}) RETURN v $$, \( paramsWrapper )) as (v agtype);",
+                logger: logger)
+        if debugPrint { debugPrintArray(agRows.rows) }
+        XCTAssert(agRows.rows.count == 0)
+    }
+    
+    func testParamsEventLoop() throws {
+        guard let connection = self.connection, let logger = self.logger else { return }
+        try connection.setUpAge(logger: logger).wait()
+        
+        // set params
+        let dateFormatter = DateFormatter()
+        dateFormatter.dateFormat = "yyyy-MM-dd'T'HH:mm:ss"
+        let testName = dateFormatter.string(from: Date())
+        var params: Dictionary<String,AGValue> = ["name": testName]
+        var paramsWrapper: AGValueWrapper = AGValueWrapper.init(value: params)
+        
+        // create
+        var agRows = try connection.execCypher(
+                "SELECT * FROM cypher('test_graph_1', $$ CREATE (v:Person {name: $name}) RETURN v $$, \( paramsWrapper )) as (v agtype);",
+                logger: logger).wait()
+        if debugPrint { debugPrintArray(agRows.rows) }
+        if let row = agRows.first,
+            let vertex = row as? Vertex,
+            let name = vertex.properties["name"] as? String {
+            XCTAssert(name == testName)
+        } else {
+            XCTFail()
+        }
+        
+        // read
+        agRows = try connection.execCypher(
+                "SELECT * FROM cypher('test_graph_1', $$ MATCH (v:Person {name: $name}) RETURN v $$, \( paramsWrapper )) as (v agtype);",
+                logger: logger).wait()
+        if debugPrint { debugPrintArray(agRows.rows) }
+        if let row = agRows.first,
+            let vertex = row as? Vertex,
+            let name = vertex.properties["name"] as? String {
+            XCTAssert(name == testName)
+        } else {
+            XCTFail()
+        }
+        
+        // update
+        let testNewName = "\(testName)-updated"
+        params["newName"] = testNewName
+        paramsWrapper = AGValueWrapper.init(value: params)
+        agRows = try connection.execCypher(
+                "SELECT * FROM cypher('test_graph_1', $$ MATCH (v:Person {name: $name}) SET v.name = $newName RETURN v $$, \( paramsWrapper )) as (v agtype);",
+                logger: logger).wait()
+        if debugPrint { debugPrintArray(agRows.rows) }
+        if let row = agRows.first,
+            let vertex = row as? Vertex,
+            let name = vertex.properties["name"] as? String {
+            XCTAssert(name == testNewName)
+        } else {
+            XCTFail()
+        }
+        
+        // delete
+        agRows = try connection.execCypher(
+                "SELECT * FROM cypher('test_graph_1', $$ MATCH (v:Person {name: $newName}) DELETE v $$, \( paramsWrapper )) as (v agtype);",
+                logger: logger).wait()
+        agRows = try connection.execCypher(
+                "SELECT * FROM cypher('test_graph_1', $$ MATCH (v:Person {name: $newName}) RETURN v $$, \( paramsWrapper )) as (v agtype);",
+                logger: logger).wait()
+        if debugPrint { debugPrintArray(agRows.rows) }
+        XCTAssert(agRows.rows.count == 0)
     }
 }

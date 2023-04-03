@@ -134,20 +134,19 @@ final class SwiftAgeParserTests: XCTestCase {
 "yn":true, "nullVal": null}}::vertex
 """
         let vertexValue = try SwiftAgeParser.parse(input: vertexExp)
-        if let vertex = vertexValue as? Vertex,
-           let properties = vertex.properties as? Dictionary<String, AGValue> {
+        if let vertex = vertexValue as? Vertex {
             
             XCTAssert(vertex.id == 2251799813685425)
             XCTAssert(vertex.label == "Person")
-            XCTAssert(properties["name"] as? String == "Smith")
-            XCTAssert(properties["numInt"] as? Int64 == 123)
-            XCTAssert(properties["numFloat"] as? Double == 384.23424)
-            XCTAssert(properties["bigInt"] as? Decimal ==
+            XCTAssert(vertex.properties["name"] as? String == "Smith")
+            XCTAssert(vertex.properties["numInt"] as? Int64 == 123)
+            XCTAssert(vertex.properties["numFloat"] as? Double == 384.23424)
+            XCTAssert(vertex.properties["bigInt"] as? Decimal ==
              Decimal.init(string: "123456789123456789123456789123456789123456789123456789123456789123456789123456789123456789123456789123456789"))
-            XCTAssert(properties["bigFloat"] as? Decimal ==
+            XCTAssert(vertex.properties["bigFloat"] as? Decimal ==
              Decimal.init(string: "123456789123456789123456789123456789.12345"))
-            XCTAssert(properties["yn"] as? Bool == true)
-            XCTAssert(properties["nullVal"] as? NSNull == nil)
+            XCTAssert(vertex.properties["yn"] as? Bool == true)
+            XCTAssert(vertex.properties["nullVal"] as? NSNull == nil)
             
         } else {
             XCTFail()
@@ -166,23 +165,20 @@ final class SwiftAgeParserTests: XCTestCase {
         if let path = pathValue as? Path,
            let vertex1 = path.entities[0] as? Vertex,
            let edge = path.entities[1] as? Edge,
-           let vertex2 = path.entities[2] as? Vertex,
-           let vertex1Props = vertex1.properties as? Dictionary<String,AGValue>,
-           let edgeProps = edge.properties as? Dictionary<String,AGValue>,
-           let vertex2Props = vertex2.properties as? Dictionary<String,AGValue> {
+           let vertex2 = path.entities[2] as? Vertex {
             
             XCTAssert(vertex1.id == 2251799813685425)
             XCTAssert(vertex1.label == "Person")
-            XCTAssert(vertex1Props["name"] as? String == "Smith")
+            XCTAssert(vertex1.properties["name"] as? String == "Smith")
             XCTAssert(edge.id == 2533274790396576)
             XCTAssert(edge.label == "workWith")
             XCTAssert(edge.endId == 2251799813685425)
             XCTAssert(edge.startId == 2251799813685424)
-            XCTAssert(edgeProps["weight"] as? Int64 == 3)
-            XCTAssert(edgeProps["bigFloat"] as? Decimal == Decimal.init(string: "123456789123456789123456789.12345"))
+            XCTAssert(edge.properties["weight"] as? Int64 == 3)
+            XCTAssert(edge.properties["bigFloat"] as? Decimal == Decimal.init(string: "123456789123456789123456789.12345"))
             XCTAssert(vertex2.id == 2251799813685424)
             XCTAssert(vertex2.label == "Person")
-            XCTAssert(vertex2Props["name"] as? String == "Joe")
+            XCTAssert(vertex2.properties["name"] as? String == "Joe")
             
         } else {
             XCTFail()

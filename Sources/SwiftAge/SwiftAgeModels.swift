@@ -1,10 +1,3 @@
-//
-//  SwiftAgeModels.swift
-//  
-//
-//  Created by Joshua Jacob on 3/7/23.
-//
-
 import Foundation
 import Antlr4
 
@@ -32,9 +25,9 @@ public struct Path : AGValue, AGObj {
 public struct Vertex : AGValue, AGObj {
     public var id : Int64
     public var label : String
-    public var properties : AGValue
+    public var properties : Dictionary<String,AGValue>
     
-    init(id: Int64, label: String, properties: AGValue) {
+    init(id: Int64, label: String, properties: Dictionary<String,AGValue>) {
         self.id = id
         self.label = label
         self.properties = properties
@@ -46,9 +39,9 @@ public struct Edge : AGValue, AGObj {
     public var label : String
     public var startId : Int64? = nil
     public var endId : Int64? = nil
-    public var properties : AGValue
+    public var properties : Dictionary<String,AGValue>
     
-    init(id: Int64, label: String, properties: AGValue) {
+    init(id: Int64, label: String, properties: Dictionary<String,AGValue>) {
         self.id = id
         self.label = label
         self.properties = properties
