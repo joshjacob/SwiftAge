@@ -110,3 +110,7 @@ And the `$1` parameter being a jsonb encoding of the Dictionary.
 ## Getting started
 
 See [SwiftAgeExamples](https://github.com/joshjacob/SwiftAgeExamples) for additional examples.
+
+## Known Issues
+
+1. No support for connections to different databases in the same runtime. Each PostgreSQL + Apache AGE installation can configure the AGE custom data type with different identifiers. While SwiftAge will find and configure the parsing for the identifier, PostgresNIO only allows that configuration at the runtime scope and not scoped per connection. If you are connecting to multiple databases, PostgresNIO Decoding will likely fail. The folowing PostgresNIO issue tracks an improvement to correct this: [https://github.com/vapor/postgres-nio/issues/333](https://github.com/vapor/postgres-nio/issues/333)

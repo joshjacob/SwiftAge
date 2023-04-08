@@ -71,7 +71,7 @@ extension PostgresConnection {
                     return Result {
                         if let row = body.rows.first,
                            let ageId = try row.first?.decode(Int32.self) {
-                            print("Apache AGE installed with _agtype oid = \(ageId)")
+                            logger.info("Apache AGE installed with _agtype oid = \(ageId)")
                             AGValueWrapper.psqlType = PostgresDataType(UInt32(ageId))
                         }
                         // TODO: exception where AGE isn't installed
@@ -88,7 +88,7 @@ extension PostgresConnection {
         let result = try await self.query("SELECT cast(typelem as INTEGER) FROM pg_type WHERE typname='_agtype'", logger: logger).get()
         if let row = result.rows.first,
             let ageId = try row.first?.decode(Int32.self) {
-            print("Apache AGE installed with _agtype oid = \(ageId)")
+            logger.info("Apache AGE installed with _agtype oid = \(ageId)")
             AGValueWrapper.psqlType = PostgresDataType(UInt32(ageId))
         }
         // TODO: exception where AGE isn't installed
@@ -147,7 +147,6 @@ extension PostgresConnection {
                         agCells.append(parsed)
                     }
                 }
-                // TODO: Add vertex/edge elements to a path
                 agRows.append(agCells)
             } else {
                 if let cell = row.first {
