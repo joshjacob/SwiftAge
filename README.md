@@ -10,12 +10,13 @@ For Vapor of other projects using a `Package.swift` file, SwiftAge can be added 
 
 ```swift
   dependencies: [
-    .package(url: "https://github.com/joshjacob/SwiftAge"),
+    .package(url: "https://github.com/joshjacob/SwiftAge", from: "1.0.0-alpha.1"),
     ...
   ]
   ...
   targets: [
     .target(name: "MyTarget", dependencies: [
+      ...
       .product(name: "SwiftAge", package: "SwiftAge"),
     ])
   ]
