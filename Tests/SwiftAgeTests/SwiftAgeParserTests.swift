@@ -3,7 +3,7 @@ import XCTest
 
 #if os(Linux)
 // swiftlint:disable:next identifier_name
-private let NSEC_PER_SEC = 1_000_000_000
+public let NSEC_PER_SEC = 1_000_000_000
 #endif
 
 final class SwiftAgeParserTests: XCTestCase {
