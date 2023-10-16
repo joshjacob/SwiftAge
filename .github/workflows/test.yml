@@ -1,0 +1,40 @@
+name: CI
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+on: 
+  push:
+    branches: 
+      - "main"
+  pull_request:
+    branches: 
+      - "*"
+env:
+  LOG_LEVEL: info
+
+jobs:
+  linux-unit:
+    strategy:
+      fail-fast: false
+      matrix:
+        container:
+          - swift:5.6-focal
+          - swift:5.7-jammy
+          - swift:5.8-jammy
+          - swiftlang/swift:nightly-5.9-jammy
+          - swiftlang/swift:nightly-main-jammy
+    container: ${{ matrix.container }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Display OS and Swift versions
+        shell: bash
+        run: |
+          if [[ '${{ contains(matrix.container, 'nightly') }}' == 'true' ]]; then
+            SWIFT_PLATFORM="$(source /etc/os-release && echo "${ID}${VERSION_ID}")" SWIFT_VERSION="$(cat /.swift_tag)"
+            printf 'SWIFT_PLATFORM=%s\nSWIFT_VERSION=%s\n' "${SWIFT_PLATFORM}" "${SWIFT_VERSION}" >>"${GITHUB_ENV}"
+          fi
+          printf 'OS:  %s\nTag: %s\nVersion:\n' "${SWIFT_PLATFORM}-${RUNNER_ARCH}" "${SWIFT_VERSION}" && swift --version
+#      - name: Check out package
+#        uses: actions/checkout@v3
+#      - name: Run unit tests with Thread Sanitizer
+#        run: swift test --filter=^SwiftAgeParserTests --sanitize=thread

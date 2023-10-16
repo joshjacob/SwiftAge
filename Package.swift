@@ -31,7 +31,13 @@ let package = Package(
             dependencies: [
                 .product(name: "PostgresNIO", package: "postgres-nio"),
                 .product(name: "Antlr4", package: "antlr4")
-            ]),
+            ],
+            resources: [.copy("Antlr4/Agtype.tokens"),
+                        .copy("Antlr4/AgtypeLexer.interp"),
+                        .copy("Antlr4/AgtypeLexer.tokens"),
+                        .copy("Antlr4/Agtype.interp"),
+                        .copy("Antlr4/Agtype.g4")] 
+        ),
         .testTarget(
             name: "SwiftAgeTests",
             dependencies: ["SwiftAge"]),
