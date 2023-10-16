@@ -61,12 +61,17 @@ final class SwiftAgeExtensionTests: XCTestCase {
         let logger = Logger(label: "postgres-logger")
         
         let config = PostgresConnection.Configuration(
-            host: self.connectionHost,
-            port: self.connectionPort,
-            username: self.authenticationUsername,
-            password: self.authenticationPassword,
-            database: self.authenticationDatabase,
-            tls: .disable)
+            connection: .init(
+             host: self.connectionHost,
+             port: self.connectionPort
+            ),
+            authentication: .init(
+             username: self.authenticationUsername,
+             database: self.authenticationDatabase,
+             password: self.authenticationPassword
+            ),
+            tls: .disable
+         )
 
         let connection = try await PostgresConnection.connect(
           on: eventLoopGroup.next(),
