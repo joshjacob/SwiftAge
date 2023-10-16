@@ -34,8 +34,8 @@ jobs:
             printf 'SWIFT_PLATFORM=%s\nSWIFT_VERSION=%s\n' "${SWIFT_PLATFORM}" "${SWIFT_VERSION}" >>"${GITHUB_ENV}"
           fi
           printf 'OS:  %s\nTag: %s\nVersion:\n' "${SWIFT_PLATFORM}-${RUNNER_ARCH}" "${SWIFT_VERSION}" && swift --version
-     - name: Check out package
-       uses: actions/checkout@v3
-     - name: Run unit tests with Thread Sanitizer
-       run: swift test --filter=^SwiftAgeParserTests --sanitize=thread
+      - name: Check out package
+        uses: actions/checkout@v3
+      - name: Run unit tests with Thread Sanitizer
+        run: swift test --filter=^SwiftAgeParserTests --sanitize=thread
 
