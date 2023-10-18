@@ -115,3 +115,4 @@ See [SwiftAgeExamples](https://github.com/joshjacob/SwiftAgeExamples) for additi
 ## Known Issues
 
 1. No support for connections to different databases in the same runtime. Each PostgreSQL + Apache AGE installation can configure the AGE custom data type with different identifiers. While SwiftAge will find and configure the parsing for the identifier, PostgresNIO only allows that configuration at the runtime scope and not scoped per connection. If you are connecting to multiple databases, PostgresNIO Decoding will likely fail. The folowing PostgresNIO issue tracks an improvement to correct this: [https://github.com/vapor/postgres-nio/issues/333](https://github.com/vapor/postgres-nio/issues/333)
+2. In order to compile on Linux, I had to fork the antlr4 dependency and introduce a change per this issue: [https://github.com/antlr/antlr4/issues/4236](https://github.com/antlr/antlr4/issues/4236).
