@@ -1,11 +1,6 @@
 import XCTest
 @testable import SwiftAge
 
-#if os(Linux)
-// swiftlint:disable:next identifier_name
-public let NSEC_PER_SEC = 1_000_000_000
-#endif
-
 final class SwiftAgeParserTests: XCTestCase {
     override func setUpWithError() throws {
         // Put setup code here. This method is called before the invocation of each test method in the class.
