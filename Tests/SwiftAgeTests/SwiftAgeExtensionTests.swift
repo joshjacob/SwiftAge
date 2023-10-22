@@ -8,8 +8,8 @@ import NIO
 
 final class SwiftAgeExtensionTests: XCTestCase {
     
-    // let connectionHost = "localhost"
-    let connectionHost = "192.168.3.170"
+    let connectionHost = "localhost"
+    // let connectionHost = "192.168.3.170"
     let connectionPort = 5455
     let authenticationUsername = "postgresUser"
     let authenticationDatabase = "postgresDB"
