@@ -38,7 +38,7 @@ jobs:
   #     - name: Check out package
   #       uses: actions/checkout@v3
   #     - name: Run unit tests with Thread Sanitizer
-  #       run: swift test --filter=^SwiftAgeParserTests --sanitize=thread
+  #       run: swift test --filter=SwiftAgeTests.SwiftAgeParserTests --sanitize=thread
 
   # macos-unit:
   #   strategy:
@@ -56,7 +56,7 @@ jobs:
   #     - name: Check out package
   #       uses: actions/checkout@v4
   #     - name: Run unit tests with Thread Sanitizer
-  #       run: swift test --filter=^SwiftAgeParserTests --sanitize=thread
+  #       run: swift test --filter=SwiftAgeTests.SwiftAgeParserTests --sanitize=thread
   
   linux-integration:
     strategy:
@@ -95,7 +95,7 @@ jobs:
       - name: Check out package
         uses: actions/checkout@v4
       - name: Run integration tests
-        run: swift test --filter=^SwiftAgeExtensionTests
+        run: swift test --filter=SwiftAgeTests.SwiftAgeExtensionTests
       
 
 
