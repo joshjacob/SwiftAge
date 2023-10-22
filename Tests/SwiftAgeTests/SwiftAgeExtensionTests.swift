@@ -8,13 +8,6 @@ import NIO
 
 final class SwiftAgeExtensionTests: XCTestCase {
     
-    let connectionHost = "localhost"
-    // let connectionHost = "192.168.3.170"
-    let connectionPort = 5455
-    let authenticationUsername = "postgresUser"
-    let authenticationDatabase = "postgresDB"
-    let authenticationPassword = "postgresPW"
-    
     var eventLoopGroup: MultiThreadedEventLoopGroup?
     var logger: Logger?
     var connection: PostgresConnection?
@@ -54,21 +47,27 @@ final class SwiftAgeExtensionTests: XCTestCase {
     
     // MARK: - Setup and Tear Down
     
+    func env(_ name: String) -> String? {
+        getenv(name).flatMap { String(cString: $0) }
+    }
+    
     override func setUp() async throws {
         // Put setup code here. This method is called before the invocation of each test method in the class.
         
         let eventLoopGroup = MultiThreadedEventLoopGroup(numberOfThreads: 1)
-        let logger = Logger(label: "postgres-logger")
+        var logger = Logger(label: "postgres-logger")
+        logger.logLevel = .info
         
+        let port = env("POSTGRES_PORT") ?? "5455"
         let config = PostgresConnection.Configuration(
             connection: .init(
-             host: self.connectionHost,
-             port: self.connectionPort
+             host: env("POSTGRES_HOSTNAME") ?? "localhost",
+             port: Int(port) ?? 5455
             ),
             authentication: .init(
-             username: self.authenticationUsername,
-             database: self.authenticationDatabase,
-             password: self.authenticationPassword
+             username: env("POSTGRES_USER") ?? "postgresUser",
+             database: env("POSTGRES_DB") ?? "postgresDB",
+             password: env("POSTGRES_PASSWORD") ?? "postgresPW"
             ),
             tls: .disable
          )
@@ -145,45 +144,37 @@ final class SwiftAgeExtensionTests: XCTestCase {
     }
     
     func testQueryPathAsync() async throws {
-        guard let connection = self.connection, let logger = self.logger else { return }
-        
-        let query = """
-            SELECT * from cypher('test_graph_1', $$
-                    MATCH (V)-[R:RELTYPE]-(V2)
-                    RETURN [V,R,V2]::path as p
-            $$) as (p agtype);
-        """
-        
         do {
+            guard let connection = self.connection, let logger = self.logger else { return }
+            
+            let query = """
+                SELECT * from cypher('test_graph_1', $$
+                        MATCH (V)-[R:RELTYPE]-(V2)
+                        RETURN [V,R,V2]::path as p
+                $$) as (p agtype);
+            """
+            
             try await connection.setUpAge(logger: logger)
+            let agRows = try await connection.execCypher(PostgresQuery.init(stringLiteral: query), logger: logger)
+            if debugPrint {
+                debugPrintArray(agRows.rows)
+            }
+            XCTAssert(agRows.count > 0)
+            if let row = agRows.first,
+               let path = row as? Path{
+                XCTAssert(path.entities[0] is Vertex)
+                XCTAssert(path.entities[1] is Edge)
+                XCTAssert(path.entities[2] is Vertex)
+            } else {
+                XCTFail()
+            }
+    //        XCTAssert((agRows.first as! [AGValue])[0] is Vertex)
+    //        XCTAssert((agRows.first as! [AGValue])[1] is Edge)
+    //        XCTAssert((agRows.first as! [AGValue])[2] is Vertex)
+            
         } catch (let error) {
             print(String(reflecting: error))
         }
-        var agRows: CypherQueryResult?
-        do {
-            agRows = try await connection.execCypher(PostgresQuery.init(stringLiteral: query), logger: logger)
-        } catch (let error) {
-            print(String(reflecting: error))
-        }
-        guard let agRows = agRows else {
-            XCTFail()
-            return
-        }
-        if debugPrint {
-            debugPrintArray(agRows.rows)
-        }
-        XCTAssert(agRows.count > 0)
-        if let row = agRows.first,
-           let path = row as? Path{
-            XCTAssert(path.entities[0] is Vertex)
-            XCTAssert(path.entities[1] is Edge)
-            XCTAssert(path.entities[2] is Vertex)
-        } else {
-            XCTFail()
-        }
-//        XCTAssert((agRows.first as! [AGValue])[0] is Vertex)
-//        XCTAssert((agRows.first as! [AGValue])[1] is Edge)
-//        XCTAssert((agRows.first as! [AGValue])[2] is Vertex)
     }
     
     // MARK: - PostgresNIO Row Decoding
