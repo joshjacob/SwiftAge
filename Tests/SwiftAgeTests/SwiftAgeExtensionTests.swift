@@ -154,8 +154,21 @@ final class SwiftAgeExtensionTests: XCTestCase {
             $$) as (p agtype);
         """
         
-        try await connection.setUpAge(logger: logger)
-        let agRows = try await connection.execCypher(PostgresQuery.init(stringLiteral: query), logger: logger)
+        do {
+            try await connection.setUpAge(logger: logger)
+        } catch (let error) {
+            print(String(reflecting: error))
+        }
+        var agRows: CypherQueryResult?
+        do {
+            agRows = try await connection.execCypher(PostgresQuery.init(stringLiteral: query), logger: logger)
+        } catch (let error) {
+            print(String(reflecting: error))
+        }
+        guard let agRows = agRows else {
+            XCTFail()
+            return
+        }
         if debugPrint {
             debugPrintArray(agRows.rows)
         }
