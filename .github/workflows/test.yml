@@ -79,7 +79,7 @@ jobs:
       age:
         image: ${{ matrix.age-image }}
         ports:
-          5455:5432
+          - 5455:5432
         env:
           POSTGRES_USER: 'test_username'
           POSTGRES_DB: 'test_database'
