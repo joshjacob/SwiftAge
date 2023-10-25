@@ -81,9 +81,9 @@ jobs:
         ports:
           - 5455:5432
         env:
-          POSTGRES_USER: 'test_username'
-          POSTGRES_DB: 'test_database'
-          POSTGRES_PASSWORD: 'test_password'
+          POSTGRES_USER: 'postgresUser'
+          POSTGRES_DB: 'postgresDB'
+          POSTGRES_PASSWORD: 'postgresPW'
           POSTGRES_PORT: 5432
     steps:
       - name: Display OS and Swift versions
