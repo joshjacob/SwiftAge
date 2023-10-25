@@ -74,7 +74,7 @@ jobs:
       POSTGRES_USER: 'postgresUser'
       POSTGRES_PASSWORD: 'postgresPW'
       POSTGRES_HOSTNAME: 'age'
-      POSTGRES_PORT: 5455
+      POSTGRES_PORT: 5432
     services:
       age:
         image: ${{ matrix.age-image }}
@@ -84,7 +84,7 @@ jobs:
           POSTGRES_USER: 'test_username'
           POSTGRES_DB: 'test_database'
           POSTGRES_PASSWORD: 'test_password'
-          POSTGRES_PORT: 5455
+          POSTGRES_PORT: 5432
     steps:
       - name: Display OS and Swift versions
         shell: bash
