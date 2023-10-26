@@ -55,8 +55,8 @@ final class SwiftAgeExtensionTests: XCTestCase {
         // Put setup code here. This method is called before the invocation of each test method in the class.
         
         let eventLoopGroup = MultiThreadedEventLoopGroup(numberOfThreads: 1)
-        var logger = Logger(label: "postgres-logger")
-        logger.logLevel = .debug
+        var logger = Logger(label: "swiftage-logger")
+        logger.logLevel = .info
         
         let port = env("POSTGRES_PORT") ?? "5455"
         let config = PostgresConnection.Configuration(
@@ -80,10 +80,15 @@ final class SwiftAgeExtensionTests: XCTestCase {
                 id: 1,
                 logger: logger
             )
+            // test if graph already set up
             try await connection?.setUpAge(logger: logger)
-            let _ = try await connection?.execCypher("SELECT * FROM ag_catalog.create_graph('test_graph_1');", logger: logger)
+            let exists = try await connection?.query("SELECT * FROM ag_catalog.ag_graph WHERE name = 'test_graph_1';", logger: logger).get()
+            if (exists?.count == 0) {
+                // set up graph and test data
+                let _ = try await connection?.execCypher("SELECT * FROM ag_catalog.create_graph('test_graph_1');", logger: logger)
+                
+            }
         } catch let error as PSQLError {
-            // logger.error("\(error.debugDescription)")
             logger.error("\( String(reflecting: error) )")
         }
         
@@ -98,21 +103,96 @@ final class SwiftAgeExtensionTests: XCTestCase {
         guard let eventLoopGroup = self.eventLoopGroup,
               let connection = self.connection else { return }
         
-        // Close your connection once done
         do {
+            // Close your connection once done
             let _ = try await connection.close()
+            
+            // Shutdown the EventLoopGroup, once all connections are closed.
+            try await eventLoopGroup.shutdownGracefully()
         } catch let error as PSQLError {
             self.logger?.error("\( String(reflecting: error) )")
+        } catch let error {
+            self.logger?.error("\( String(reflecting: error) )")
         }
-
-        // Shutdown the EventLoopGroup, once all connections are closed.
-        try await eventLoopGroup.shutdownGracefully()
+    }
+    
+    // MARK: - Test Data
+    
+    func addTestData() throws {
+        guard let connection = self.connection, let logger = self.logger else { return }
+        
+        try connection.setUpAge(logger: logger).wait()
+        
+        let dateFormatter = DateFormatter()
+        dateFormatter.dateFormat = "yyyy-MM-dd'T'HH:mm:ss"
+        let testName = dateFormatter.string(from: Date())
+        let params: Dictionary<String,AGValue> = ["newName": "\(testName)-A"]
+        let paramsWrapper: AGValueWrapper = AGValueWrapper(value: params)
+        let agRows1 = try connection.execCypher("SELECT * FROM cypher('test_graph_1', $$ CREATE (n:Person {name: $newName}) RETURN n $$, \( paramsWrapper )) as (v agtype);", logger: logger).wait()
+        
+        let params2: Dictionary<String,AGValue> = ["newName": "\(testName)-B"]
+        let paramsWrapper2: AGValueWrapper = AGValueWrapper(value: params2)
+        let agRows2 = try connection.execCypher("SELECT * FROM cypher('test_graph_1', $$ CREATE (n:Person {name: $newName}) RETURN n $$, \( paramsWrapper2 )) as (v agtype);", logger: logger).wait()
+        
+        if let row1 = agRows1.first,
+           let vertex1 = row1 as? Vertex,
+           let row2 = agRows2.first,
+           let vertex2 = row2 as? Vertex {
+            
+            let id1 = vertex1.id
+            let id2 = vertex2.id
+                
+            let paramsRel: Dictionary<String,AGValue> = ["person1": id1, "person2": id2]
+            let paramsRelWrapper: AGValueWrapper = AGValueWrapper(value: paramsRel)
+            let _ = try connection.execCypher(
+                "SELECT * FROM cypher('test_graph_1', $$ MATCH (a:Person), (b:Person) WHERE id(a) = $person1 AND id(b) = $person2 CREATE (a)-[e:Related_To]->(b) RETURN e $$, \( paramsRelWrapper )) as (e agtype);",
+                logger: logger).wait()
+                
+        } else {
+            XCTFail("Creating test data failed.")
+        }
+    }
+    
+    func addTestDataAsync() async throws {
+        guard let connection = self.connection, let logger = self.logger else { return }
+        
+        try await connection.setUpAge(logger: logger)
+        
+        let dateFormatter = DateFormatter()
+        dateFormatter.dateFormat = "yyyy-MM-dd'T'HH:mm:ss"
+        let testName = dateFormatter.string(from: Date())
+        let params: Dictionary<String,AGValue> = ["newName": "\(testName)-A"]
+        let paramsWrapper: AGValueWrapper = AGValueWrapper(value: params)
+        let agRows1 = try await connection.execCypher("SELECT * FROM cypher('test_graph_1', $$ CREATE (n:Person {name: $newName}) RETURN n $$, \( paramsWrapper )) as (v agtype);", logger: logger)
+        
+        let params2: Dictionary<String,AGValue> = ["newName": "\(testName)-B"]
+        let paramsWrapper2: AGValueWrapper = AGValueWrapper(value: params2)
+        let agRows2 = try await connection.execCypher("SELECT * FROM cypher('test_graph_1', $$ CREATE (n:Person {name: $newName}) RETURN n $$, \( paramsWrapper2 )) as (v agtype);", logger: logger)
+        
+        if let row1 = agRows1.first,
+           let vertex1 = row1 as? Vertex,
+           let row2 = agRows2.first,
+           let vertex2 = row2 as? Vertex {
+            
+            let id1 = vertex1.id
+            let id2 = vertex2.id
+                
+            let paramsRel: Dictionary<String,AGValue> = ["person1": id1, "person2": id2]
+            let paramsRelWrapper: AGValueWrapper = AGValueWrapper(value: paramsRel)
+            let _ = try await connection.execCypher(
+                "SELECT * FROM cypher('test_graph_1', $$ MATCH (a:Person), (b:Person) WHERE id(a) = $person1 AND id(b) = $person2 CREATE (a)-[e:Related_To]->(b) RETURN e $$, \( paramsRelWrapper )) as (e agtype);", logger: logger)
+                
+        } else {
+            XCTFail("Creating test data failed.")
+        }
     }
     
     // MARK: - Async
     
     func testQueryVertexAsync() async throws {
         guard let connection = self.connection, let logger = self.logger else { return }
+        
+        try await addTestDataAsync()
         
         try await connection.setUpAge(logger: logger)
         let agRows = try await connection.execCypher("SELECT * FROM cypher('test_graph_1', $$ MATCH (v:Person) RETURN v $$) as (v agtype);", logger: logger)
@@ -128,6 +208,8 @@ final class SwiftAgeExtensionTests: XCTestCase {
     func testQueryVertexEventLoop() throws {
         guard let connection = self.connection, let logger = self.logger else { return }
         
+        try addTestData()
+        
         try connection.setUpAge(logger: logger).wait()
         let agRows = try connection.execCypher("SELECT * FROM cypher('test_graph_1', $$ MATCH (v:Person) RETURN v $$) as (v agtype);", logger: logger).wait()
         if debugPrint {
@@ -139,6 +221,8 @@ final class SwiftAgeExtensionTests: XCTestCase {
     
     func testQuery2() async throws {
         guard let connection = self.connection, let logger = self.logger else { return }
+        
+        try await addTestDataAsync()
         
         XCTAssertNoThrow(try connection.setUpAge(logger: logger).wait())
         connection.execCypher("SELECT * FROM cypher('test_graph_1', $$ MATCH (v:Person) RETURN v $$) as (v agtype);", logger: logger).whenComplete {
@@ -158,9 +242,11 @@ final class SwiftAgeExtensionTests: XCTestCase {
     func testQueryPathAsync() async throws {
         guard let connection = self.connection, let logger = self.logger else { return }
         
+        try await addTestDataAsync()
+        
         let query = """
             SELECT * from cypher('test_graph_1', $$
-                    MATCH (V)-[R:RELTYPE]-(V2)
+                    MATCH (V)-[R:Related_To]-(V2)
                     RETURN [V,R,V2]::path as p
             $$) as (p agtype);
         """
@@ -189,6 +275,9 @@ final class SwiftAgeExtensionTests: XCTestCase {
     
     func testQueryDecodeRowAsync() async throws {
         guard let connection = self.connection, let logger = self.logger else { return }
+        
+        try await addTestDataAsync()
+        
         try await connection.setUpAge(logger: logger)
         
         let rows = try await connection.query(
@@ -203,6 +292,9 @@ final class SwiftAgeExtensionTests: XCTestCase {
     
     func testQueryDecodeRowEventLoop() throws {
         guard let connection = self.connection, let logger = self.logger else { return }
+        
+        try addTestData()
+        
         try connection.setUpAge(logger: logger).wait()
         
         let result = try connection.query(
