@@ -51,7 +51,7 @@ final class SwiftAgeExtensionTests: XCTestCase {
         getenv(name).flatMap { String(cString: $0) }
     }
     
-    override func setUpWithError() throws {
+    override func setUp() async throws {
         // Put setup code here. This method is called before the invocation of each test method in the class.
         
         let eventLoopGroup = MultiThreadedEventLoopGroup(numberOfThreads: 1)
@@ -74,12 +74,14 @@ final class SwiftAgeExtensionTests: XCTestCase {
 
         var connection: PostgresConnection? = nil
         do {
-            connection = try PostgresConnection.connect(
+            connection = try await PostgresConnection.connect(
                 on: eventLoopGroup.next(),
                 configuration: config,
                 id: 1,
                 logger: logger
-            ).wait()
+            )
+            try await connection?.setUpAge(logger: logger)
+            let _ = try await connection?.execCypher("SELECT * FROM ag_catalog.create_graph('test_graph_1');", logger: logger)
         } catch let error as PSQLError {
             // logger.error("\(error.debugDescription)")
             logger.error("\( String(reflecting: error) )")
@@ -97,7 +99,11 @@ final class SwiftAgeExtensionTests: XCTestCase {
               let connection = self.connection else { return }
         
         // Close your connection once done
-        let _ = try await connection.close()
+        do {
+            let _ = try await connection.close()
+        } catch let error as PSQLError {
+            self.logger?.error("\( String(reflecting: error) )")
+        }
 
         // Shutdown the EventLoopGroup, once all connections are closed.
         try await eventLoopGroup.shutdownGracefully()
