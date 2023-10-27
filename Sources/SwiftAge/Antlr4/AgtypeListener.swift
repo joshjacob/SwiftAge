@@ -1,4 +1,4 @@
-// Generated from Agtype.g4 by ANTLR 4.12.0
+// Generated from Agtype.g4 by ANTLR 4.13.1
 import Antlr4
 
 /**

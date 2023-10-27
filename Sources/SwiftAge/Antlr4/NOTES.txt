@@ -1,0 +1,23 @@
+ANTLR4 Updating
+---------------
+
+Install and configure per: https://github.com/antlr/antlr4/blob/master/doc/getting-started.md
+
+    $ pip install antlr4-tools
+
+    $ antlr4
+    Downloading antlr4-4.13.1-complete.jar
+    ANTLR tool needs Java to run; install Java JRE 11 yes/no (default yes)? y
+    Installed Java in /Users/parrt/.jre/jdk-11.0.15+10-jre; remove that dir to uninstall
+    ANTLR Parser Generator  Version 4.13.1
+     -o ___              specify output directory where all output is generated
+     -lib ___            specify location of grammars, tokens files
+    ...
+
+
+Run on Apache AGE grammar:
+
+    antlr4 -Dlanguage=Swift -visitor -listener Agtype.g4
+
+
+Update Sources/SiwftAge/Antlr4 and test.
