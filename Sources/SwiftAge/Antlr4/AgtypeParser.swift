@@ -1,4 +1,4 @@
-// Generated from Agtype.g4 by ANTLR 4.12.0
+// Generated from Agtype.g4 by ANTLR 4.13.1
 import Antlr4
 
 open class AgtypeParser: Parser {
@@ -63,7 +63,7 @@ open class AgtypeParser: Parser {
 
 	override public
 	init(_ input:TokenStream) throws {
-	    RuntimeMetaData.checkVersion("4.12.0", RuntimeMetaData.VERSION)
+	    RuntimeMetaData.checkVersion("4.13.1", RuntimeMetaData.VERSION)
 		try super.init(input)
 		_interp = ParserATNSimulator(self,AgtypeParser._ATN,AgtypeParser._decisionToDFA, AgtypeParser._sharedContextCache)
 	}
