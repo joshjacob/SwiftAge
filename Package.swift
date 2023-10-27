@@ -20,7 +20,7 @@ let package = Package(
     dependencies: [
         // Dependencies declare other packages that this package depends on.
         // .package(url: /* package url */, from: "1.0.0"),
-        .package(url: "https://github.com/vapor/postgres-nio.git", from: "1.12.0"),
+        .package(url: "https://github.com/vapor/postgres-nio.git", from: "1.16.0"),
         // .package(url: "https://github.com/antlr/antlr4", from: "4.12.0")
         .package(url: "https://github.com/joshjacob/antlr4", branch: "dev")
     ],

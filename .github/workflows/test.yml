@@ -38,7 +38,7 @@ jobs:
       - name: Check out package
         uses: actions/checkout@v3
       - name: Run unit tests with Thread Sanitizer
-        run: swift test --filter=^SwiftAgeParserTests --sanitize=thread
+        run: swift test --filter=SwiftAgeTests.SwiftAgeParserTests --sanitize=thread
 
   macos-unit:
     strategy:
@@ -56,5 +56,46 @@ jobs:
       - name: Check out package
         uses: actions/checkout@v4
       - name: Run unit tests with Thread Sanitizer
-        run: swift test --filter=^SwiftAgeParserTests --sanitize=thread
+        run: swift test --filter=SwiftAgeTests.SwiftAgeParserTests --sanitize=thread
+  
+  linux-integration:
+    strategy:
+      fail-fast: false
+      matrix:
+        age-image:
+          - apache/age:PG13_latest
+          - apache/age:PG12_latest
+          - apache/age:PG11_latest
+    container:
+      image: swift:5.9-jammy
+    runs-on: ubuntu-latest
+    env:
+      POSTGRES_DB: 'postgresDB'
+      POSTGRES_USER: 'postgresUser'
+      POSTGRES_PASSWORD: 'postgresPW'
+      POSTGRES_HOSTNAME: 'age'
+      POSTGRES_PORT: 5432
+    services:
+      age:
+        image: ${{ matrix.age-image }}
+        ports:
+          - 5455:5432
+        env:
+          POSTGRES_USER: 'postgresUser'
+          POSTGRES_DB: 'postgresDB'
+          POSTGRES_PASSWORD: 'postgresPW'
+          POSTGRES_PORT: 5432
+    steps:
+      - name: Display OS and Swift versions
+        shell: bash
+        run: |
+          [[ -z "${SWIFT_PLATFORM}" ]] && SWIFT_PLATFORM="$(. /etc/os-release && echo "${ID}${VERSION_ID}")"
+          [[ -z "${SWIFT_VERSION}" ]] && SWIFT_VERSION="$(cat /.swift_tag 2>/dev/null || true)"
+          printf 'OS:  %s\nTag: %s\nVersion:\n' "${SWIFT_PLATFORM}-${RUNNER_ARCH}" "${SWIFT_VERSION}" && swift --version
+      - name: Check out package
+        uses: actions/checkout@v4
+      - name: Run integration tests
+        run: swift test --filter=SwiftAgeTests.SwiftAgeExtensionTests
+      
+
 
