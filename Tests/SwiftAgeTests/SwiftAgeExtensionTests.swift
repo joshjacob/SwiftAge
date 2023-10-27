@@ -60,17 +60,12 @@ final class SwiftAgeExtensionTests: XCTestCase {
         
         let port = env("POSTGRES_PORT") ?? "5455"
         let config = PostgresConnection.Configuration(
-            connection: .init(
-             host: env("POSTGRES_HOSTNAME") ?? "localhost",
-             port: Int(port) ?? 5455
-            ),
-            authentication: .init(
-             username: env("POSTGRES_USER") ?? "postgresUser",
-             database: env("POSTGRES_DB") ?? "postgresDB",
-             password: env("POSTGRES_PASSWORD") ?? "postgresPW"
-            ),
-            tls: .disable
-         )
+            host: env("POSTGRES_HOSTNAME") ?? "localhost",
+            port: Int(port) ?? 5455,
+            username: env("POSTGRES_USER") ?? "postgresUser",
+            password: env("POSTGRES_PASSWORD") ?? "postgresPW",
+            database: env("POSTGRES_DB") ?? "postgresDB",
+            tls: .disable)
 
         var connection: PostgresConnection? = nil
         do {
