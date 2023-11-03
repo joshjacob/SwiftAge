@@ -73,9 +73,10 @@ extension PostgresConnection {
                            let ageId = try row.first?.decode(Int32.self) {
                             logger.info("Apache AGE installed with _agtype oid = \(ageId)")
                             AGValueWrapper.psqlType = PostgresDataType(UInt32(ageId))
+                            return Void()
+                        } else {
+                            throw SwiftAgeError.ageNotInstalled
                         }
-                        // TODO: exception where AGE isn't installed
-                        return Void()
                     }
                 }
             }
@@ -90,8 +91,9 @@ extension PostgresConnection {
             let ageId = try row.first?.decode(Int32.self) {
             logger.info("Apache AGE installed with _agtype oid = \(ageId)")
             AGValueWrapper.psqlType = PostgresDataType(UInt32(ageId))
+        } else {
+            throw SwiftAgeError.ageNotInstalled
         }
-        // TODO: exception where AGE isn't installed
     }
     
     public func execCypher(
