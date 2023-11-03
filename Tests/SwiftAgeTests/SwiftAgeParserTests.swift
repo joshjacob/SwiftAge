@@ -1,9 +1,22 @@
 import XCTest
+import Logging
 @testable import SwiftAge
 
+let isLoggingConfigured: Bool = {
+    LoggingSystem.bootstrap { label in
+        var handler = StreamLogHandler.standardOutput(label: label)
+        handler.logLevel = .trace
+        return handler
+    }
+    return true
+}()
+
 final class SwiftAgeParserTests: XCTestCase {
+    
     override func setUpWithError() throws {
         // Put setup code here. This method is called before the invocation of each test method in the class.
+        
+        XCTAssert(isLoggingConfigured)
     }
 
     override func tearDownWithError() throws {

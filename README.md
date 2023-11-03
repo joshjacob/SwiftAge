@@ -1,5 +1,9 @@
 # SwiftAge
 
+[![](https://img.shields.io/endpoint?url=https%3A%2F%2Fswiftpackageindex.com%2Fapi%2Fpackages%2Fjoshjacob%2FSwiftAge%2Fbadge%3Ftype%3Dswift-versions)](https://swiftpackageindex.com/joshjacob/SwiftAge)
+
+[![](https://img.shields.io/endpoint?url=https%3A%2F%2Fswiftpackageindex.com%2Fapi%2Fpackages%2Fjoshjacob%2FSwiftAge%2Fbadge%3Ftype%3Dplatforms)](https://swiftpackageindex.com/joshjacob/SwiftAge)
+
 SwiftAge is an extension to [PostgresNIO](https://github.com/vapor/postgres-nio) that enables quering and response parsing of graph databases with the [Apache AGE](https://github.com/apache/age/) extension to PostgreSQL.
 
 ## Getting started

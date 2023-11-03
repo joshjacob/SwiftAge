@@ -1,5 +1,8 @@
 import Foundation
 import Antlr4
+import Logging
+
+fileprivate let logger: Logger? = nil // Logger(label: "swiftage.visitor")
 
 public class SwiftAgeVisitor : AgtypeVisitor<AGValue?> {
     
@@ -73,7 +76,6 @@ class AgeVisitorAgValue : AgtypeVisitor<AGValue?> {
             if valueCtx is AgtypeParser.NullValueContext {
                 let ageVisitor = AgeVisitorNullValue()
                 let _ = valueCtx.accept(ageVisitor) ?? nil
-                // let agValue = AGValue.init(value: nil)
                 return nil
             }
             if valueCtx is AgtypeParser.ObjectValueContext {
@@ -93,8 +95,9 @@ class AgeVisitorAgValue : AgtypeVisitor<AGValue?> {
     private func handleAnnotatedValue(anno:String, ctx:ParserRuleContext) -> AGValue {
         
         if anno == "numeric" {
-            // TODO: consider failed parsing return
-            return Decimal.init(string: ctx.getText()) ?? Decimal(0.0)
+            let retDecimal = Decimal.init(string: ctx.getText()) ?? Decimal(0.0)
+            logger?.trace("Annotated value - numeric: returning \(retDecimal) for text '\( String(describing: ctx.getText()) )'")
+            return retDecimal
         }
         else if anno == "vertex" {
             let dict = ctx.accept(AgeVisitorObjectValue())
@@ -157,9 +160,9 @@ class AgeVisitorStringValue : AgtypeVisitor<String> {
      - returns: the visitor result
      */
     override func visitStringValue(_ ctx: AgtypeParser.StringValueContext) -> String {
-        // TODO: reconsider if string is null
-        let string = ctx.STRING()?.getText() ?? ""
-        return SwiftAgeVisitor.cleanString(string)
+        let retString = SwiftAgeVisitor.cleanString(ctx.STRING()?.getText() ?? "")
+        logger?.trace("String value: returning \(retString) for text '\( String(describing: ctx.STRING()?.getText()) )'")
+        return retString
     }
 }
 
@@ -173,8 +176,9 @@ class AgeVisitorIntegerValue : AgtypeVisitor<Int64> {
      - returns: the visitor result
      */
     override func visitIntegerValue(_ ctx: AgtypeParser.IntegerValueContext) -> Int64 {
-        // TODO: reconsider if int is null
-        return Int64.init(ctx.INTEGER()?.getText() ?? "0") ?? 0
+        let retInt = Int64.init(ctx.INTEGER()?.getText() ?? "0") ?? 0
+        logger?.trace("Integer value: returning \(retInt) for text '\( String(describing: ctx.INTEGER()?.getText()) )'")
+        return retInt
     }
 }
 
@@ -188,9 +192,12 @@ class AgeVisitorFloatValue : AgtypeVisitor<Double> {
      */
     override func visitFloatValue(_ ctx: AgtypeParser.FloatValueContext) -> Double {
         if let floatLiteral =  ctx.floatLiteral() {
-            return floatLiteral.accept(AgeVisitorFloatLiteral()) ?? 0.0
+            let accept = floatLiteral.accept(AgeVisitorFloatLiteral())
+            let retDouble: Double = accept ?? 0.0
+            logger?.trace("Float value: returning \(retDouble) for text '\( String(describing: accept) )'")
+            return retDouble
         } else {
-            // TODO: review return
+            logger?.trace("Float value: returning 0.0 for missing float literal")
             return 0.0
         }
     }
@@ -205,6 +212,7 @@ class AgeVisitorBooleanValue : AgtypeVisitor<Bool> {
      - returns: the visitor result
      */
     override func visitTrueBoolean(_ ctx: AgtypeParser.TrueBooleanContext) -> Bool {
+        logger?.trace("True boolean: returning true")
         return true
     }
     
@@ -216,6 +224,7 @@ class AgeVisitorBooleanValue : AgtypeVisitor<Bool> {
      - returns: the visitor result
      */
     override func visitFalseBoolean(_ ctx: AgtypeParser.FalseBooleanContext) -> Bool {
+        logger?.trace("False boolean: returning false")
         return false
     }
 }
@@ -229,6 +238,7 @@ class AgeVisitorNullValue : AgtypeVisitor<NSNull> {
      - returns: the visitor result
      */
     override func visitNullValue(_ ctx: AgtypeParser.NullValueContext) -> NSNull {
+        logger?.trace("Null value: returning \(NSNull.init())")
         return NSNull.init()
     }
 }
@@ -299,10 +309,10 @@ class AgeVisitorPair : AgtypeVisitor<(String,AGValue?)> {
      - returns: the visitor result
      */
     override func visitPair(_ ctx: AgtypeParser.PairContext) -> (String,AGValue?) {
-        // TODO: review use of !
-        let value = ctx.agValue()?.accept(AgeVisitorAgValue())! as AGValue?
-        // TODO: consider empty string
-        return (ctx.STRING()?.getText() ?? "", value)
+        let retValue = ctx.agValue()?.accept(AgeVisitorAgValue()) ?? NSNull.init() as AGValue
+        let retString = ctx.STRING()?.getText() ?? ""
+        logger?.trace("Pair: returning key \(retString) for text '\(String(describing: ctx.STRING()?.getText()))' with value \(String(describing: retValue))")
+        return (retString, retValue)
     }
 }
 
@@ -337,7 +347,9 @@ class AgeVisitorATypeAnnotation : AgtypeVisitor<String> {
      - returns: the visitor result
      */
     override func visitTypeAnnotation(_ ctx: AgtypeParser.TypeAnnotationContext) -> String {
-        return ctx.IDENT()?.getText() ?? ""
+        let retString = ctx.IDENT()?.getText() ?? ""
+        logger?.trace("Annotation: returning '\(retString)'")
+        return retString
     }
 }
 
@@ -350,24 +362,31 @@ class AgeVisitorFloatLiteral : AgtypeVisitor<Double> {
      */
     override func visitFloatLiteral(_ ctx: AgtypeParser.FloatLiteralContext) -> Double {
         if let float = ctx.RegularFloat() {
-            return Double(float.getText()) ?? 0.0
+            let retDouble = Double(float.getText()) ?? 0.0
+            logger?.trace("Float literal: returning \(retDouble) for text '\(float.getText())'")
+            return retDouble
         }
         else if let float = ctx.ExponentFloat() {
-            return Double(float.getText()) ?? 0.0
+            let retDouble = Double(float.getText()) ?? 0.0
+            logger?.trace("Float literal: returning \(retDouble) for text '\(float.getText())'")
+            return retDouble
         }
         else {
             let text = ctx.getText()
             if text == "NaN" {
+                logger?.trace("Float literal: returning \(Double.nan) for text '\(text)'")
                 return Double.nan
             }
             else if text == "-Infinity" {
-                return Double.infinity
-            }
-            else if text == "Infinity" {
+                logger?.trace("Float literal: returning \(-Double.infinity) for text '\(text)'")
                 return -Double.infinity
             }
+            else if text == "Infinity" {
+                logger?.trace("Float literal: returning \(Double.infinity) for text '\(text)'")
+                return Double.infinity
+            }
             else {
-                // TODO: Review options for throwing errors
+                logger?.trace("Float literal: unknown text - returning \(Double.nan) for text '\(text)'")
                 return Double.nan
             }
         }
